@@ -277,15 +277,22 @@ a, button, [onclick] { cursor: pointer; -webkit-tap-highlight-color: rgba(0,0,0,
   border-radius: 8px;
   padding: 20px 16px;
 }
-.receipt h2 { text-align: center; font-size: 18px; margin-bottom: 4px; }
-.receipt .r-meta { font-size: 12px; margin-bottom: 8px; border-bottom: 1px dashed #ccc; padding-bottom: 8px; }
-.receipt table { width: 100%; border-collapse: collapse; }
-.receipt th { border-bottom: 2px solid #333; padding: 4px 2px; font-size: 12px; }
-.receipt td { padding: 5px 2px; border-bottom: 1px solid #eee; font-size: 13px; }
-.receipt .r-qty { text-align: right; margin-top: 8px; font-size: 13px; color: #555; border-top: 1px dashed #ccc; padding-top: 6px; }
-.receipt .r-total { font-size: 18px; font-weight: bold; text-align: right; margin-top: 4px; color: #e74c3c; }
-.receipt .r-remark { font-size: 11px; color: #888; margin-top: 6px; }
-.receipt .r-thanks { text-align: center; font-size: 12px; margin-top: 10px; color: #555; }
+.receipt h2 { text-align: center; font-size: 16px; font-weight: bold; margin-bottom: 0; }
+.receipt .r-store { text-align: center; font-size: 13px; color: #555; margin-bottom: 4px; }
+.receipt .r-type-no { text-align: center; font-size: 24px; font-weight: bold; margin: 4px 0 2px; letter-spacing: 1px; }
+.receipt .r-count { text-align: center; font-size: 16px; font-weight: bold; margin: 2px 0 6px; }
+.receipt .r-dash { border: none; border-top: 1px dashed #999; margin: 6px 0; }
+.receipt .r-meta { font-size: 12px; margin: 3px 0; line-height: 1.7; }
+.receipt .r-item-block { margin: 8px 0; overflow: hidden; }
+.receipt .r-item-row { overflow: hidden; font-size: 16px; font-weight: bold; line-height: 1.4; }
+.receipt .r-item-row .i-name { float: left; }
+.receipt .r-item-row .i-price { float: right; }
+.receipt .r-item-sub { font-size: 12px; color: #555; padding-left: 8px; margin-top: 1px; clear: both; }
+.receipt .r-total-block { text-align: center; margin: 6px 0 2px; }
+.receipt .r-total { font-size: 22px; font-weight: bold; color: #000; }
+.receipt .r-remark { font-size: 12px; color: #555; margin: 3px 0; }
+.receipt .r-thanks { text-align: center; font-size: 12px; margin-top: 6px; color: #555; }
+.receipt .r-footer { text-align: center; font-size: 11px; color: #999; margin-top: 6px; line-height: 1.6; }
 .receipt-btns { overflow: hidden; margin-top: 14px; }
 .receipt-btns button {
   float: left; width: 48%;
@@ -471,17 +478,60 @@ a, button, [onclick] { cursor: pointer; -webkit-tap-highlight-color: rgba(0,0,0,
 }
 
 @media print {
-  .header, .tab-bar, .menu-panel, .cart-panel { display: none !important; }
-  .wrap { display: none !important; }
-  .print-overlay { display: block !important; position: static !important; background: none !important; }
+  /* 隱藏所有非收據元素 */
+  .header, .tab-bar, .menu-panel, .cart-panel,
+  .wrap, .login-overlay, .modal-overlay,
+  .cart-fab, .rec-panel { display: none !important; }
+
+  /* 頁面設定：80mm 熱感紙（約 72mm 可印寬） */
+  @page {
+    size: 80mm auto;
+    margin: 2mm 3mm;
+  }
+
+  html, body {
+    width: 80mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-overlay {
+    display: block !important;
+    position: static !important;
+    background: none !important;
+    width: 100% !important;
+  }
+
   .receipt {
     position: static !important;
     -webkit-transform: none !important;
     transform: none !important;
     width: 100% !important;
     max-height: none !important;
+    overflow: visible !important;
     border-radius: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 2mm 0 !important;
+    font-size: 12px !important;
+    font-family: 'Microsoft JhengHei', Arial, sans-serif !important;
   }
+
+  .receipt h2 { font-size: 15px !important; }
+  .receipt .r-store { font-size: 12px !important; }
+  .receipt .r-type-no { font-size: 22px !important; }
+  .receipt .r-count { font-size: 15px !important; }
+  .receipt .r-dash { border-top: 1px dashed #000 !important; margin: 3mm 0 !important; }
+  .receipt .r-meta { font-size: 11px !important; }
+  .receipt .r-item-row { font-size: 15px !important; }
+  .receipt .r-item-sub { font-size: 11px !important; }
+  .receipt .r-total { font-size: 20px !important; color: #000 !important; }
+  .receipt .r-remark { font-size: 11px !important; color: #000 !important; }
+  .receipt .r-thanks { font-size: 11px !important; color: #000 !important; }
+  .receipt .r-footer { font-size: 10px !important; color: #000 !important; }
   .receipt-btns { display: none !important; }
 }
 </style>
@@ -1158,63 +1208,75 @@ function syncAll() {
   }
 }
 
-function reprintOrder(idx) {
-  var r = records[idx];
-  if(!r) return;
-  var tableLabel = r.type==='內用'?'桌號':r.type==='外帶'?'外帶號':'地址';
-  var rows='', totalQty=0;
-  for(var i=0;i<r.items.length;i++){
-    var it=r.items[i], lt=it.price*it.qty;
-    totalQty+=it.qty;
-    rows+='<tr><td>'+it.name+(it.sub?' '+it.sub:'')+'</td><td align="center">'+it.qty+'</td><td align="right">$'+lt+'</td></tr>';
+function buildReceiptHtml(type, tableVal, dateStr, timeStr, itemsArr, total, remark, orderNo, storeName, printTime) {
+  var tableLabel = type==='內用'?'桌號：':type==='外帶'?'外帶號：':'地址：';
+  var totalQty = 0;
+  var itemBlocks = '';
+  for(var i=0;i<itemsArr.length;i++){
+    var it = itemsArr[i];
+    var subtotal = it.price * it.qty;
+    totalQty += it.qty;
+    itemBlocks += '<div class="r-item-block">'
+      +'<div class="r-item-row">'
+      +'<span class="i-name">'+it.qty+' x '+it.name+'</span>'
+      +'<span class="i-price">$'+subtotal+'</span>'
+      +'</div>'
+      +(it.sub ? '<div class="r-item-sub">'+it.sub+'</div>' : '')
+      +'</div>';
   }
-  var html='<h2>風味食堂</h2>'
-    +'<div class="r-meta"><b>【'+r.type+'】</b>　'+tableLabel+'：<b>'+r.table+'</b><br>時間：'+r.date+' '+r.time+'</div>'
-    +'<table><tr><th align="left">品項</th><th>數</th><th align="right">小計</th></tr>'+rows+'</table>'
-    +'<div class="r-qty">餐點數量：'+totalQty+'份</div>'
-    +'<div class="r-total">總金額：$'+r.total+'</div>'
-    +'<div class="r-remark">備註：'+(r.remark||'無')+'</div>'
+  var typeLabel = type==='內用'?'內用':type==='外帶'?'外帶 No.'+tableVal:'外送';
+  var metaTable = (type==='外送') ? '＊地址：'+tableVal+'<br>' : (type==='內用'?'＊桌號：'+tableVal+'<br>':'');
+  var remarkLine = (remark && remark!=='無') ? '<div class="r-meta">＊備註：'+remark+'</div><hr class="r-dash">' : '';
+  var html = '<h2>風味食堂</h2>'
+    +'<div class="r-store">'+(storeName||'')+'</div>'
+    +'<hr class="r-dash">'
+    +'<div class="r-type-no">'+typeLabel+'</div>'
+    +'<div class="r-count">共 '+totalQty+' 份餐點</div>'
+    +'<hr class="r-dash">'
+    +'<div class="r-meta">＊時間：'+dateStr+' '+timeStr+'</div>'
+    +metaTable
+    +'<hr class="r-dash">'
+    +remarkLine
+    +itemBlocks
+    +'<hr class="r-dash">'
+    +'<div class="r-total-block"><div class="r-total">合計：$'+total+'</div></div>'
+    +'<hr class="r-dash">'
     +'<div class="r-thanks">謝謝光臨，敬請慢用</div>'
+    +'<div class="r-footer">序號：#'+orderNo+'　列印：'+(printTime||timeStr)+'</div>'
     +'<div class="receipt-btns">'
     +'<button class="r-close" onclick="closePrint()">關閉</button>'
     +'<button class="r-print" onclick="window.print()">列印</button>'
     +'</div>';
+  return html;
+}
+
+function reprintOrder(idx) {
+  var r = records[idx];
+  if(!r) return;
+  var now = new Date();
+  var printTime = ('0'+now.getHours()).slice(-2)+':'+('0'+now.getMinutes()).slice(-2);
+  var html = buildReceiptHtml(r.type, r.table, r.date, r.time, r.items, r.total, r.remark||'', r.no, r.store||currentStore, printTime);
   document.getElementById('receiptContent').innerHTML = html;
   document.getElementById('printOverlay').className = 'print-overlay show';
 }
 
 function printOrder() {
   if(cart.length===0){ alert('請先選擇餐點！'); return; }
-  var table='', tableLabel='';
+  var table='';
   if(orderType==='外帶'){
     var noEl2=document.getElementById('takeNo');
     table = noEl2 ? noEl2.textContent : '-';
-    tableLabel='外帶號';
   } else {
     var inp3=document.getElementById('tableNum');
     table = inp3 ? (inp3.value||'未填') : '未填';
-    tableLabel = orderType==='內用'?'桌號':'地址';
   }
-  var remark=document.getElementById('remark').value||'無';
-  var total=0, totalQty=0, rows='';
-  for(var i=0;i<cart.length;i++){
-    var it=cart[i], lt=it.price*it.qty; total+=lt; totalQty+=it.qty;
-    rows+='<tr><td>'+it.name+(it.sub?' '+it.sub:'')+'</td><td align="center">'+it.qty+'</td><td align="right">$'+lt+'</td></tr>';
-  }
+  var remark=document.getElementById('remark').value||'';
+  var total=0;
+  for(var i=0;i<cart.length;i++){ total+=cart[i].price*cart[i].qty; }
   var now=new Date();
-  var ts=now.getFullYear()+'/'+(now.getMonth()+1)+'/'+now.getDate()+' '
-    +('0'+now.getHours()).slice(-2)+':'+('0'+now.getMinutes()).slice(-2);
-  var html='<h2>風味食堂</h2>'
-    +'<div class="r-meta"><b>【'+orderType+'】</b>　'+tableLabel+'：<b>'+table+'</b><br>時間：'+ts+'</div>'
-    +'<table><tr><th align="left">品項</th><th>數</th><th align="right">小計</th></tr>'+rows+'</table>'
-    +'<div class="r-qty">餐點數量：'+totalQty+'份</div>'
-    +'<div class="r-total">總金額：$'+total+'</div>'
-    +'<div class="r-remark">備註：'+remark+'</div>'
-    +'<div class="r-thanks">謝謝光臨，敬請慢用</div>'
-    +'<div class="receipt-btns">'
-    +'<button class="r-close" onclick="closePrint()">關閉</button>'
-    +'<button class="r-print" onclick="window.print()">列印</button>'
-    +'</div>';
+  var dateStr=now.getFullYear()+'/'+(now.getMonth()+1)+'/'+now.getDate();
+  var timeStr=('0'+now.getHours()).slice(-2)+':'+('0'+now.getMinutes()).slice(-2);
+  var html = buildReceiptHtml(orderType, table, dateStr, timeStr, cart, total, remark, orderNo, currentStore, timeStr);
   document.getElementById('receiptContent').innerHTML = html;
   document.getElementById('printOverlay').className = 'print-overlay show';
 }
