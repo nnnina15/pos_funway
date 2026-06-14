@@ -351,6 +351,7 @@ a, button, [onclick] { cursor: pointer; -webkit-tap-highlight-color: rgba(0,0,0,
 .tag-take { background: #fff3e0; color: #e67c00; }
 .tag-deliver { background: #e8f5e9; color: #27ae60; }
 .rec-item-head .rtotal { float: right; color: #e74c3c; font-size: 14px; }
+.rec-item-head .r-reprint { float: right; margin-right: 8px; background: #1a1a2e; color: #fff; border: none; border-radius: 4px; padding: 2px 8px; font-size: 11px; cursor: pointer; }
 .rec-item-body { padding: 6px 10px; font-size: 12px; color: #555; }
 .rec-item-body span { margin-right: 12px; }
 
@@ -478,7 +479,7 @@ a, button, [onclick] { cursor: pointer; -webkit-tap-highlight-color: rgba(0,0,0,
 <!-- Records Overlay -->
 <div class="rec-overlay" id="recOverlay">
   <div class="rec-box">
-    <div class="rec-head">📋 訂單記錄 <button onclick="closeRecords()">關閉</button></div>
+    <div class="rec-head">📋 訂單記錄 <button onclick="closeRecords()">關閉</button><button onclick="syncAll()" style="margin-right:6px;">☁同步全部</button></div>
     <div class="rec-list" id="recList"><div class="rec-empty">尚無訂單記錄</div></div>
   </div>
 </div>
@@ -554,6 +555,11 @@ function showCat(id, btn) {
   btn.className = 'active';
   document.getElementById('menuPanel').scrollTop = 0;
 }
+
+// ===== Google Sheet 設定 =====
+// 填入你的 Apps Script 網址後即可自動同步
+var GAS_URL = '';  // e.g. 'https://script.google.com/macros/s/XXXXX/exec'
+// ==============================
 
 var cart = [], uid = 0, orderType = '內用', records = [], orderNo = 0;
 var takeoutCount = 0;
@@ -716,7 +722,7 @@ function confirmOrder() {
   var t=('0'+now.getHours()).slice(-2)+':'+('0'+now.getMinutes()).slice(-2);
   var remark=document.getElementById('remark').value;
   var today=getTodayStr();
-  records.unshift({
+  var newRec = {
     no: ++orderNo,
     type: orderType,
     table: table,
@@ -724,9 +730,12 @@ function confirmOrder() {
     total: total,
     remark: remark,
     time: t,
-    date: today
-  });
+    date: today,
+    synced: false
+  };
+  records.unshift(newRec);
   alert('出單成功！\n【'+orderType+'】 '+display+'\n時間：'+t+'\n總金額：$'+total);
+  syncToSheet(newRec, function(ok){ newRec.synced=ok; if(ok) showToast('已同步到 Google Sheet ✓'); });
   cart=[]; renderCart();
   document.getElementById('remark').value='';
   // Refresh infoRow for 外帶 (update number)
@@ -753,12 +762,18 @@ function openRecords() {
         var it=r.items[j];
         items+='<span>'+it.name+(it.sub?' '+it.sub:'')+' x'+it.qty+'</span>';
       }
+      var syncBadge = GAS_URL ? (r.synced
+        ? '<span style="color:#27ae60;font-size:11px;margin-left:4px;">☁✓</span>'
+        : '<span style="color:#e74c3c;font-size:11px;margin-left:4px;" onclick="syncOne('+i+')" ontouchend="syncOne('+i+');event.preventDefault();">☁重試</span>')
+        : '';
       html+='<div class="rec-item">'
         +'<div class="rec-item-head">'
         +'#'+r.no+' <span class="tag '+tagClass+'">'+r.type+'</span> '+r.table
         +(r.type==='內用'?' ('+r.guests+'人)':'')
         +' &nbsp;'+r.date+' '+r.time
+        +syncBadge
         +'<span class="rtotal">$'+r.total+'</span>'
+        +'<button class="r-reprint" onclick="reprintOrder('+i+');event.stopPropagation();" ontouchend="reprintOrder('+i+');event.stopPropagation();event.preventDefault();">🖨重印</button>'
         +'</div>'
         +'<div class="rec-item-body">'+items+(r.remark?'<br>備註：'+r.remark:'')+'</div>'
         +'</div>';
@@ -770,6 +785,90 @@ function openRecords() {
 
 function closeRecords() {
   document.getElementById('recOverlay').className='rec-overlay';
+}
+
+function syncToSheet(r, callback) {
+  if(!GAS_URL){ if(callback) callback(false); return; }
+  var itemStr='';
+  for(var i=0;i<r.items.length;i++){
+    var it=r.items[i];
+    itemStr+=(i?'、':'')+it.name+(it.sub?' '+it.sub:'')+' x'+it.qty;
+  }
+  var payload = JSON.stringify({
+    no: r.no, date: r.date, time: r.time,
+    type: r.type, table: r.table,
+    items: itemStr, total: r.total, remark: r.remark||''
+  });
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', GAS_URL, true);
+  xhr.setRequestHeader('Content-Type', 'text/plain');
+  xhr.onreadystatechange = function() {
+    if(xhr.readyState===4){
+      var ok = xhr.status===200;
+      if(callback) callback(ok);
+    }
+  };
+  xhr.onerror = function(){ if(callback) callback(false); };
+  xhr.send(payload);
+}
+
+function syncOne(idx) {
+  var r = records[idx];
+  if(!r || r.synced) return;
+  showToast('同步中…');
+  syncToSheet(r, function(ok){
+    r.synced = ok;
+    showToast(ok ? '同步成功 ✓' : '同步失敗，請重試');
+    openRecords();
+  });
+}
+
+function syncAll() {
+  if(!GAS_URL){ showToast('請先設定 GAS_URL'); return; }
+  var pending=[];
+  for(var i=0;i<records.length;i++){
+    if(!records[i].synced) pending.push(i);
+  }
+  if(pending.length===0){ showToast('全部已同步 ✓'); return; }
+  showToast('同步中…');
+  var done=0;
+  for(var j=0;j<pending.length;j++){
+    (function(idx){
+      syncToSheet(records[idx], function(ok){
+        if(ok) records[idx].synced=true;
+        done++;
+        if(done===pending.length){
+          showToast('同步完成 ✓');
+          openRecords();
+        }
+      });
+    })(pending[j]);
+  }
+}
+
+function reprintOrder(idx) {
+  var r = records[idx];
+  if(!r) return;
+  var tableLabel = r.type==='內用'?'桌號':r.type==='外帶'?'外帶號':'地址';
+  var rows='', totalQty=0;
+  for(var i=0;i<r.items.length;i++){
+    var it=r.items[i], lt=it.price*it.qty;
+    totalQty+=it.qty;
+    rows+='<tr><td>'+it.name+(it.sub?' '+it.sub:'')+'</td><td align="center">'+it.qty+'</td><td align="right">$'+lt+'</td></tr>';
+  }
+  var html='<h2>風味食堂</h2>'
+    +'<div class="r-meta"><b>【'+r.type+'】</b>　'+tableLabel+'：<b>'+r.table+'</b><br>時間：'+r.date+' '+r.time+'</div>'
+    +'<table><tr><th align="left">品項</th><th>數</th><th align="right">小計</th></tr>'+rows+'</table>'
+    +'<div class="r-qty">餐點數量：'+totalQty+'份</div>'
+    +'<div class="r-total">總金額：$'+r.total+'</div>'
+    +'<div class="r-remark">備註：'+(r.remark||'無')+'</div>'
+    +'<div class="r-thanks">謝謝光臨，敬請慢用</div>'
+    +'<div class="receipt-btns">'
+    +'<button class="r-close" onclick="closePrint()">關閉</button>'
+    +'<button class="r-print" onclick="window.print()">列印</button>'
+    +'</div>';
+  document.getElementById('receiptContent').innerHTML = html;
+  document.getElementById('printOverlay').className = 'print-overlay show';
 }
 
 function printOrder() {
