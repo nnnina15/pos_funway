@@ -1224,8 +1224,10 @@ function buildReceiptHtml(type, tableVal, dateStr, timeStr, itemsArr, total, rem
       +(it.sub ? '<div class="r-item-sub">'+it.sub+'</div>' : '')
       +'</div>';
   }
-  var typeLabel = type==='內用'?'內用':type==='外帶'?'外帶 No.'+tableVal:'外送';
-  var metaTable = (type==='外送') ? '＊地址：'+tableVal+'<br>' : (type==='內用'?'＊桌號：'+tableVal+'<br>':'');
+  var typeLabel = type==='內用'? '內用　桌號：'+tableVal
+              : type==='外帶'? '外帶 No.'+tableVal
+              : '外送';
+  var metaTable = (type==='外送') ? '<div class="r-meta">＊地址：'+tableVal+'</div>' : '';
   var remarkLine = (remark && remark!=='無') ? '<div class="r-meta">＊備註：'+remark+'</div><hr class="r-dash">' : '';
   var html = '<h2>風味食堂</h2>'
     +'<div class="r-store">'+(storeName||'')+'</div>'
