@@ -573,6 +573,7 @@ function showCat(id, btn) {
 var cart = [], uid = 0, orderType = '內用', records = [], orderNo = 0;
 var takeoutCount = 0;
 var takeoutDate = '';
+var GAS_URL = 'https://script.google.com/macros/s/AKfycbxfWsPH4V30I2U1oTl_THA7Kp3kjNERULmEztXBQ8m0bqsMfmY7b_5cRuYXY-18OWjvgw/exec';
 
 // 從 localStorage 載入歷史訂單
 (function(){
@@ -762,6 +763,7 @@ function confirmOrder() {
   records.unshift(newRec);
   saveRecords();
   alert('出單成功！\n【'+orderType+'】 '+display+'\n時間：'+t+'\n總金額：$'+total);
+  syncToGAS(newRec);
   syncToSheet(newRec, function(ok){ newRec.synced=ok; saveRecords(); if(ok) showToast('已同步到 Firebase ✓'); });
   cart=[]; renderCart();
   document.getElementById('remark').value='';
@@ -825,6 +827,23 @@ function syncToSheet(r, callback) {
     items: itemStr, total: r.total, remark: r.remark||''
   }).then(function(){ if(callback) callback(true); })
     .catch(function(){ if(callback) callback(false); });
+}
+
+function syncToGAS(r) {
+  if(!GAS_URL) return;
+  var itemStr='';
+  for(var i=0;i<r.items.length;i++){
+    var it=r.items[i];
+    itemStr+=(i?'、':'')+it.name+(it.sub?' '+it.sub:'')+' x'+it.qty;
+  }
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', GAS_URL, true);
+  xhr.setRequestHeader('Content-Type', 'text/plain');
+  xhr.send(JSON.stringify({
+    no: r.no, date: r.date, time: r.time,
+    type: r.type, table: r.table,
+    items: itemStr, total: r.total, remark: r.remark||''
+  }));
 }
 
 function syncOne(idx) {
