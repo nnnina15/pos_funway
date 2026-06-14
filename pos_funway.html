@@ -556,10 +556,9 @@ function showCat(id, btn) {
   document.getElementById('menuPanel').scrollTop = 0;
 }
 
-// ===== Google Sheet 設定 =====
-// 填入你的 Apps Script 網址後即可自動同步
-var GAS_URL = '';  // e.g. 'https://script.google.com/macros/s/XXXXX/exec'
-// ==============================
+// ===== Firebase Firestore 設定 =====
+var FIREBASE_URL = 'https://firestore.googleapis.com/v1/projects/funwayrestaurant/databases/(default)/documents/orders';
+// ====================================
 
 var cart = [], uid = 0, orderType = '內用', records = [], orderNo = 0;
 var takeoutCount = 0;
@@ -762,7 +761,7 @@ function openRecords() {
         var it=r.items[j];
         items+='<span>'+it.name+(it.sub?' '+it.sub:'')+' x'+it.qty+'</span>';
       }
-      var syncBadge = GAS_URL ? (r.synced
+      var syncBadge = FIREBASE_URL ? (r.synced
         ? '<span style="color:#27ae60;font-size:11px;margin-left:4px;">☁✓</span>'
         : '<span style="color:#e74c3c;font-size:11px;margin-left:4px;" onclick="syncOne('+i+')" ontouchend="syncOne('+i+');event.preventDefault();">☁重試</span>')
         : '';
@@ -788,20 +787,27 @@ function closeRecords() {
 }
 
 function syncToSheet(r, callback) {
-  if(!GAS_URL){ if(callback) callback(false); return; }
+  if(!FIREBASE_URL){ if(callback) callback(false); return; }
   var itemStr='';
   for(var i=0;i<r.items.length;i++){
     var it=r.items[i];
     itemStr+=(i?'、':'')+it.name+(it.sub?' '+it.sub:'')+' x'+it.qty;
   }
   var payload = JSON.stringify({
-    no: r.no, date: r.date, time: r.time,
-    type: r.type, table: r.table,
-    items: itemStr, total: r.total, remark: r.remark||''
+    fields: {
+      no:     { integerValue: r.no },
+      date:   { stringValue: r.date },
+      time:   { stringValue: r.time },
+      type:   { stringValue: r.type },
+      table:  { stringValue: r.table },
+      items:  { stringValue: itemStr },
+      total:  { integerValue: r.total },
+      remark: { stringValue: r.remark||'' }
+    }
   });
   var xhr = new XMLHttpRequest();
-  xhr.open('POST', GAS_URL, true);
-  xhr.setRequestHeader('Content-Type', 'text/plain');
+  xhr.open('POST', FIREBASE_URL, true);
+  xhr.setRequestHeader('Content-Type', 'application/json');
   xhr.onreadystatechange = function() {
     if(xhr.readyState===4){
       var ok = xhr.status===200;
@@ -824,7 +830,7 @@ function syncOne(idx) {
 }
 
 function syncAll() {
-  if(!GAS_URL){ showToast('請先設定 GAS_URL'); return; }
+  if(!FIREBASE_URL){ showToast('請先設定 FIREBASE_URL'); return; }
   var pending=[];
   for(var i=0;i<records.length;i++){
     if(!records[i].synced) pending.push(i);
