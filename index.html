@@ -355,6 +355,48 @@ a, button, [onclick] { cursor: pointer; -webkit-tap-highlight-color: rgba(0,0,0,
 .rec-item-body { padding: 6px 10px; font-size: 12px; color: #555; }
 .rec-item-body span { margin-right: 12px; }
 
+/* ===== 登入畫面 ===== */
+.login-overlay {
+  display: none; position: fixed;
+  top:0; left:0; right:0; bottom:0;
+  background: #1a1a2e; z-index: 9999;
+  -webkit-box-align: center; -webkit-align-items: center; align-items: center;
+  -webkit-box-pack: center; -webkit-justify-content: center; justify-content: center;
+  display: -webkit-box; display: -webkit-flex; display: flex;
+}
+.login-overlay.show { display: -webkit-box; display: -webkit-flex; display: flex; }
+.login-box {
+  background: #fff; border-radius: 16px; padding: 36px 28px;
+  width: 88%; max-width: 360px; text-align: center;
+}
+.login-box h2 { font-size: 22px; margin-bottom: 6px; color: #1a1a2e; }
+.login-box p { color: #888; font-size: 13px; margin-bottom: 20px; }
+.login-box input {
+  width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px;
+  font-size: 18px; text-align: center; letter-spacing: 4px; margin-bottom: 16px;
+}
+.login-box input:focus { border-color: #e74c3c; outline: none; }
+.login-store-btns { display: -webkit-box; display: -webkit-flex; display: flex; gap: 10px; }
+.login-store-btns button {
+  -webkit-box-flex: 1; -webkit-flex: 1; flex: 1;
+  padding: 14px 0; border: none; border-radius: 10px;
+  font-size: 16px; font-weight: bold; cursor: pointer;
+  touch-action: manipulation;
+}
+.btn-store-a { background: #e74c3c; color: #fff; }
+.btn-store-b { background: #1a1a2e; color: #fff; }
+.login-err { color: #e74c3c; font-size: 13px; margin-top: 10px; min-height: 18px; }
+
+.store-badge {
+  display: inline-block; background: rgba(255,255,255,0.2);
+  border-radius: 10px; padding: 2px 10px; font-size: 12px; margin-left: 8px;
+}
+.logout-btn {
+  float: right; background: rgba(255,255,255,0.2); border: none;
+  color: #fff; border-radius: 5px; padding: 3px 10px;
+  font-size: 12px; cursor: pointer; margin-top: 1px;
+}
+
 /* ===== 手機版 ===== */
 @media (max-width: 768px) {
   .wrap { display: block; height: auto; }
@@ -442,6 +484,20 @@ a, button, [onclick] { cursor: pointer; -webkit-tap-highlight-color: rgba(0,0,0,
 </head>
 <body ontouchstart="">
 
+<!-- 登入畫面 -->
+<div class="login-overlay show" id="loginOverlay">
+  <div class="login-box">
+    <h2>🍽 風味食堂 POS</h2>
+    <p>請選擇分店並輸入密碼</p>
+    <input type="password" id="loginPwd" placeholder="輸入密碼" maxlength="10">
+    <div class="login-store-btns">
+      <button class="btn-store-a" onclick="doLogin('中正店')" ontouchend="doLogin('中正店');event.preventDefault();">中正店</button>
+      <button class="btn-store-b" onclick="doLogin('大埔店')" ontouchend="doLogin('大埔店');event.preventDefault();">大埔店</button>
+    </div>
+    <div class="login-err" id="loginErr"></div>
+  </div>
+</div>
+
 <div class="tab-bar" id="tabBar">
   <button class="active" onclick="showCat('stirfry',this)">現炒</button>
   <button onclick="showCat('rice',this)">炒飯</button>
@@ -495,7 +551,7 @@ a, button, [onclick] { cursor: pointer; -webkit-tap-highlight-color: rgba(0,0,0,
   </div>
 
   <div class="cart-panel">
-    <div class="cart-head">🧾 點餐明細 <span id="cnt">共0項</span><button onclick="openRecords()" style="float:right;background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:5px;padding:3px 8px;font-size:12px;cursor:pointer;margin-top:1px;">訂單記錄</button></div>
+    <div class="cart-head">🧾 點餐明細 <span id="cnt">共0項</span><span class="store-badge" id="storeBadge"></span><button onclick="openRecords()" style="float:right;background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:5px;padding:3px 8px;font-size:12px;cursor:pointer;margin-top:1px;">訂單記錄</button><button class="logout-btn" onclick="doLogout()">登出</button></div>
     <div class="otype-row">
       <button class="otype-btn sel" id="ot-dine" onclick="setOtype('內用',this)">內用</button>
       <button class="otype-btn" id="ot-take" onclick="setOtype('外帶',this)">外帶</button>
@@ -651,22 +707,66 @@ var takeoutCount = 0;
 var takeoutDate = '';
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbxfWsPH4V30I2U1oTl_THA7Kp3kjNERULmEztXBQ8m0bqsMfmY7b_5cRuYXY-18OWjvgw/exec';
 
-// 從 localStorage 載入歷史訂單
-(function(){
+// ===== 登入 =====
+var STORE_PASSWORDS = { '中正店': '1111', '大埔店': '2222' };
+var currentStore = '';
+
+function doLogin(store) {
+  var pwd = document.getElementById('loginPwd').value;
+  if(STORE_PASSWORDS[store] !== pwd){
+    document.getElementById('loginErr').textContent = '密碼錯誤，請再試一次';
+    return;
+  }
+  currentStore = store;
+  try { localStorage.setItem('pos_store', store); } catch(e){}
+  document.getElementById('loginOverlay').className = 'login-overlay';
+  document.getElementById('storeBadge').textContent = store;
+  document.getElementById('loginErr').textContent = '';
+  document.getElementById('loginPwd').value = '';
+  loadStoreRecords();
+  renderCart();
+}
+
+function doLogout() {
+  if(!confirm('確定登出？')) return;
+  currentStore = '';
+  try { localStorage.removeItem('pos_store'); } catch(e){}
+  cart = []; records = []; orderNo = 0;
+  renderCart();
+  document.getElementById('storeBadge').textContent = '';
+  document.getElementById('loginOverlay').className = 'login-overlay show';
+}
+
+function loadStoreRecords() {
   try {
-    var saved = localStorage.getItem('pos_records');
-    if(saved){ records = JSON.parse(saved); }
-    var savedNo = localStorage.getItem('pos_orderNo');
-    if(savedNo){ orderNo = parseInt(savedNo)||0; }
-  } catch(e){}
-})();
+    var key = 'pos_records_' + currentStore;
+    var saved = localStorage.getItem(key);
+    records = saved ? JSON.parse(saved) : [];
+    var savedNo = localStorage.getItem('pos_orderNo_' + currentStore);
+    orderNo = savedNo ? (parseInt(savedNo)||0) : 0;
+  } catch(e){ records = []; orderNo = 0; }
+}
 
 function saveRecords() {
+  if(!currentStore) return;
   try {
-    localStorage.setItem('pos_records', JSON.stringify(records));
-    localStorage.setItem('pos_orderNo', String(orderNo));
+    localStorage.setItem('pos_records_' + currentStore, JSON.stringify(records));
+    localStorage.setItem('pos_orderNo_' + currentStore, String(orderNo));
   } catch(e){}
 }
+
+// 自動登入（上次記錄的分店）
+(function(){
+  try {
+    var s = localStorage.getItem('pos_store');
+    if(s && STORE_PASSWORDS[s]){
+      currentStore = s;
+      document.getElementById('loginOverlay').className = 'login-overlay';
+      document.getElementById('storeBadge').textContent = s;
+      loadStoreRecords();
+    }
+  } catch(e){}
+})();
 
 function getTodayStr() {
   var d = new Date();
@@ -839,6 +939,7 @@ function confirmOrder() {
   var today=getTodayStr();
   var newRec = {
     no: ++orderNo,
+    store: currentStore,
     type: orderType,
     table: table,
     items: cart.slice(),
@@ -911,7 +1012,7 @@ function syncToSheet(r, callback) {
     itemStr+=(i?'、':'')+it.name+(it.sub?' '+it.sub:'')+' x'+it.qty;
   }
   db.collection('orders').add({
-    no: r.no, date: r.date, time: r.time,
+    store: r.store||'', no: r.no, date: r.date, time: r.time,
     type: r.type, table: r.table,
     items: itemStr, total: r.total, remark: r.remark||''
   }).then(function(){ if(callback) callback(true); })
@@ -926,7 +1027,7 @@ function syncToGAS(r) {
     itemStr+=(i?'、':'')+it.name+(it.sub?' '+it.sub:'')+' x'+it.qty;
   }
   var body = JSON.stringify({
-    no: r.no, date: r.date, time: r.time,
+    store: r.store||'', no: r.no, date: r.date, time: r.time,
     type: r.type, table: r.table,
     items: itemStr, total: r.total, remark: r.remark||''
   });
