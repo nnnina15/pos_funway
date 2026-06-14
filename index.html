@@ -729,6 +729,7 @@ function doLogin(store) {
   document.getElementById('loginPwd').value = '';
   loadStoreRecords();
   renderCart();
+  loadFromFirebase();
 }
 
 function doLogout() {
@@ -751,6 +752,36 @@ function loadStoreRecords() {
   } catch(e){ records = []; orderNo = 0; }
 }
 
+function loadFromFirebase() {
+  if(!currentStore) return;
+  db.collection(currentStore).get().then(function(snapshot) {
+    var fbRecs = [];
+    snapshot.forEach(function(doc) {
+      var d = doc.data();
+      fbRecs.push({
+        no: d.no, store: currentStore,
+        type: d.type, table: d.table,
+        items: d.items,   // string format from Firebase
+        total: d.total, remark: d.remark||'',
+        time: d.time, date: d.date,
+        synced: true, fromCloud: true
+      });
+    });
+    // 合併：本地有的保留，Firebase 有但本地沒有的補進來
+    var localNos = {};
+    for(var i=0;i<records.length;i++) localNos[records[i].no] = true;
+    for(var j=0;j<fbRecs.length;j++){
+      if(!localNos[fbRecs[j].no]) records.push(fbRecs[j]);
+    }
+    // 依訂單編號排序（新的在前）
+    records.sort(function(a,b){ return b.no - a.no; });
+    // 更新 orderNo
+    if(records.length > 0 && records[0].no > orderNo) orderNo = records[0].no;
+    saveRecords();
+    showToast('訂單記錄已同步 ✓');
+  }).catch(function(err){ console.log('Firebase load err:', err); });
+}
+
 function saveRecords() {
   if(!currentStore) return;
   try {
@@ -768,6 +799,7 @@ function saveRecords() {
       document.getElementById('loginOverlay').className = 'login-overlay';
       document.getElementById('storeBadge').textContent = s;
       loadStoreRecords();
+      loadFromFirebase();
     }
   } catch(e){}
 })();
@@ -1015,8 +1047,9 @@ function syncToSheet(r, callback) {
     var it=r.items[i];
     itemStr+=(i?'、':'')+it.name+(it.sub?' '+it.sub:'')+' x'+it.qty;
   }
-  db.collection('orders').add({
-    store: r.store||'', no: r.no, date: r.date, time: r.time,
+  var col = r.store || 'orders';
+  db.collection(col).add({
+    no: r.no, date: r.date, time: r.time,
     type: r.type, table: r.table,
     items: itemStr, total: r.total, remark: r.remark||''
   }).then(function(){ if(callback) callback(true); })
