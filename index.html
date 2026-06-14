@@ -574,6 +574,23 @@ var cart = [], uid = 0, orderType = '內用', records = [], orderNo = 0;
 var takeoutCount = 0;
 var takeoutDate = '';
 
+// 從 localStorage 載入歷史訂單
+(function(){
+  try {
+    var saved = localStorage.getItem('pos_records');
+    if(saved){ records = JSON.parse(saved); }
+    var savedNo = localStorage.getItem('pos_orderNo');
+    if(savedNo){ orderNo = parseInt(savedNo)||0; }
+  } catch(e){}
+})();
+
+function saveRecords() {
+  try {
+    localStorage.setItem('pos_records', JSON.stringify(records));
+    localStorage.setItem('pos_orderNo', String(orderNo));
+  } catch(e){}
+}
+
 function getTodayStr() {
   var d = new Date();
   return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();
@@ -743,8 +760,9 @@ function confirmOrder() {
     synced: false
   };
   records.unshift(newRec);
+  saveRecords();
   alert('出單成功！\n【'+orderType+'】 '+display+'\n時間：'+t+'\n總金額：$'+total);
-  syncToSheet(newRec, function(ok){ newRec.synced=ok; if(ok) showToast('已同步到 Google Sheet ✓'); });
+  syncToSheet(newRec, function(ok){ newRec.synced=ok; saveRecords(); if(ok) showToast('已同步到 Firebase ✓'); });
   cart=[]; renderCart();
   document.getElementById('remark').value='';
   // Refresh infoRow for 外帶 (update number)
