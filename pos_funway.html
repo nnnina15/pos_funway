@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>風味食堂 POS</title>
+<style>
+* { -webkit-box-sizing: border-box; box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Microsoft JhengHei', Arial, sans-serif; background: #f0f2f5; font-size: 14px; -webkit-user-select: none; user-select: none; }
+a, button, [onclick] { cursor: pointer; -webkit-tap-highlight-color: rgba(0,0,0,0.1); touch-action: manipulation; }
+
+.header {
+  background: #1a1a2e;
+  color: #fff;
+  padding: 10px 14px;
+  overflow: hidden;
+}
+.header h1 { font-size: 17px; float: left; line-height: 1.4; }
+.header .info { float: right; font-size: 11px; opacity: .8; text-align: right; line-height: 1.5; }
+
+.tab-bar {
+  background: #fff;
+  border-bottom: 2px solid #ddd;
+  padding: 6px 8px;
+  white-space: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.tab-bar button {
+  display: inline-block;
+  padding: 6px 12px;
+  margin-right: 4px;
+  border: 2px solid #1a1a2e;
+  border-radius: 16px;
+  background: #fff;
+  color: #1a1a2e;
+  font-size: 13px;
+  font-weight: bold;
+  cursor: pointer;
+}
+.tab-bar button.active { background: #1a1a2e; color: #fff; }
+
+.wrap {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: flex;
+  height: calc(100vh - 90px);
+}
+
+.menu-panel {
+  -webkit-box-flex: 1;
+  -webkit-flex: 1;
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.cat-block { margin-bottom: 14px; }
+.cat-title {
+  background: #1a1a2e;
+  color: #fff;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: bold;
+  border-radius: 4px 4px 0 0;
+}
+.cat-items {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-top: none;
+  border-radius: 0 0 4px 4px;
+  padding: 8px;
+  overflow: hidden;
+}
+.cat-items:after { content: ''; display: table; clear: both; }
+
+.item-card {
+  float: left;
+  width: 31%;
+  margin: 1%;
+  background: #fafafa;
+  border: 1.5px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 8px 4px;
+  text-align: center;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: rgba(231,76,60,0.2);
+}
+.item-card:active { background: #ffe0e0; border-color: #e74c3c; }
+.item-card .n { font-size: 12px; font-weight: bold; margin-bottom: 4px; }
+.item-card .p { font-size: 15px; font-weight: bold; color: #e74c3c; }
+.item-card .sp { font-size: 10px; color: #e74c3c; }
+.item-card.stirfry { background: #fff8e7; border-color: #f0c040; }
+.item-card.stirfry .p { color: #c0720c; }
+
+.cart-panel {
+  width: 300px;
+  min-width: 260px;
+  background: #fff;
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: flex;
+  -webkit-box-orient: vertical;
+  -webkit-flex-direction: column;
+  flex-direction: column;
+  border-left: 2px solid #ddd;
+}
+.cart-head {
+  background: #e74c3c;
+  color: #fff;
+  padding: 10px 12px;
+  font-weight: bold;
+  font-size: 15px;
+  overflow: hidden;
+}
+.cart-head span { float: right; font-size: 12px; opacity: .9; margin-top: 2px; }
+
+.info-row {
+  padding: 8px 10px;
+  border-bottom: 1px solid #eee;
+  background: #fafafa;
+  overflow: hidden;
+}
+.info-row label { font-size: 12px; font-weight: bold; }
+.info-row input {
+  padding: 5px 8px;
+  border: 1.5px solid #ddd;
+  border-radius: 5px;
+  font-size: 13px;
+  text-align: center;
+  font-weight: bold;
+  width: 70px;
+  margin-left: 4px;
+}
+
+.cart-list {
+  -webkit-box-flex: 1;
+  -webkit-flex: 1;
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+  -webkit-overflow-scrolling: touch;
+}
+.cart-empty { text-align: center; color: #bbb; padding: 30px 0; font-size: 13px; }
+
+.cart-item {
+  border: 1px solid #eee;
+  border-radius: 6px;
+  padding: 7px 8px;
+  margin-bottom: 6px;
+  background: #fafafa;
+  overflow: hidden;
+}
+.ci-name { font-size: 13px; font-weight: bold; float: left; max-width: 55%; }
+.ci-sub { font-size: 11px; color: #888; clear: left; margin-top: 1px; }
+.ci-right { float: right; text-align: right; }
+.ci-price { font-size: 13px; font-weight: bold; color: #e74c3c; }
+.ci-ctrl { margin-top: 4px; }
+.ci-ctrl button {
+  width: 26px; height: 26px;
+  border: 1.5px solid #ddd;
+  border-radius: 4px;
+  background: #fff;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  vertical-align: middle;
+}
+.ci-ctrl button:active { background: #e74c3c; color: #fff; border-color: #e74c3c; }
+.ci-qty { display: inline-block; width: 22px; text-align: center; font-weight: bold; vertical-align: middle; }
+.ci-del { float: right; background: none; border: none; color: #ccc; font-size: 16px; cursor: pointer; padding: 0 2px; }
+.ci-del:active { color: #e74c3c; }
+
+.remark-wrap { padding: 0 8px 6px; }
+.remark-wrap textarea {
+  width: 100%; padding: 6px 8px;
+  border: 1.5px solid #ddd; border-radius: 5px;
+  font-size: 12px; resize: none; height: 40px;
+  font-family: inherit;
+}
+
+.cart-foot { border-top: 2px solid #eee; padding: 10px 12px; }
+.total-row { overflow: hidden; margin-bottom: 10px; }
+.total-row .label { float: left; font-size: 18px; font-weight: bold; }
+.total-row .amount { float: right; font-size: 22px; font-weight: bold; color: #e74c3c; }
+.btn-row { overflow: hidden; }
+.btn-row button {
+  float: left;
+  padding: 11px 0;
+  border: none;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: bold;
+  cursor: pointer;
+  margin-right: 5px;
+}
+.btn-clear { width: 22%; background: #f0f0f0; color: #555; }
+.btn-print { width: 32%; background: #27ae60; color: #fff; }
+.btn-order { width: 40%; background: #e74c3c; color: #fff; margin-right: 0 !important; }
+
+.overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,.55);
+  z-index: 300;
+}
+.overlay.show { display: block; }
+.modal {
+  position: absolute;
+  top: 50%; left: 50%;
+  -webkit-transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%);
+  background: #fff;
+  border-radius: 10px;
+  padding: 20px;
+  width: 90%;
+  max-width: 420px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+.modal h3 { font-size: 16px; margin-bottom: 14px; color: #1a1a2e; }
+.modal-label { font-size: 12px; font-weight: bold; color: #666; margin-bottom: 8px; }
+.sauce-grid { overflow: hidden; margin-bottom: 12px; }
+.sauce-btn {
+  float: left;
+  margin: 3px;
+  padding: 8px 12px;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 13px;
+  font-weight: bold;
+  cursor: pointer;
+}
+.sauce-btn.sel { background: #e74c3c; color: #fff; border-color: #e74c3c; }
+.sauce-btn:disabled { opacity: .3; }
+.modal-price { text-align: center; font-size: 22px; font-weight: bold; color: #e74c3c; margin: 12px 0; }
+.modal-btns { overflow: hidden; margin-top: 14px; }
+.modal-btns button {
+  float: left; width: 48%;
+  padding: 11px 0;
+  border: none; border-radius: 7px;
+  font-size: 14px; font-weight: bold; cursor: pointer;
+}
+.modal-btns .m-cancel { background: #f0f0f0; color: #555; margin-right: 4%; }
+.modal-btns .m-add { background: #e74c3c; color: #fff; }
+
+.toast {
+  display: none;
+  position: fixed;
+  bottom: 70px; left: 50%;
+  -webkit-transform: translateX(-50%);
+  transform: translateX(-50%);
+  background: #333;
+  color: #fff;
+  padding: 8px 18px;
+  border-radius: 18px;
+  font-size: 13px;
+  z-index: 500;
+  white-space: nowrap;
+}
+
+/* Print receipt overlay */
+.print-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,.6);
+  z-index: 600;
+}
+.print-overlay.show { display: block; }
+.receipt {
+  position: absolute;
+  top: 50%; left: 50%;
+  -webkit-transform: translate(-50%,-50%);
+  transform: translate(-50%,-50%);
+  background: #fff;
+  width: 300px;
+  max-height: 85vh;
+  overflow-y: auto;
+  border-radius: 8px;
+  padding: 20px 16px;
+}
+.receipt h2 { text-align: center; font-size: 18px; margin-bottom: 4px; }
+.receipt .r-info { text-align: center; font-size: 11px; color: #666; margin-bottom: 10px; }
+.receipt .r-meta { font-size: 12px; margin-bottom: 8px; border-bottom: 1px dashed #ccc; padding-bottom: 8px; }
+.receipt table { width: 100%; border-collapse: collapse; }
+.receipt th { border-bottom: 2px solid #333; padding: 4px 2px; font-size: 12px; }
+.receipt td { padding: 5px 2px; border-bottom: 1px solid #eee; font-size: 13px; }
+.receipt .r-total { font-size: 18px; font-weight: bold; text-align: right; margin-top: 8px; color: #e74c3c; }
+.receipt .r-remark { font-size: 11px; color: #888; margin-top: 6px; }
+.receipt .r-thanks { text-align: center; font-size: 12px; margin-top: 10px; color: #555; }
+.receipt-btns { overflow: hidden; margin-top: 14px; }
+.receipt-btns button {
+  float: left; width: 48%;
+  padding: 10px; border: none; border-radius: 6px;
+  font-size: 14px; font-weight: bold; cursor: pointer;
+}
+.r-close { background: #f0f0f0; color: #555; margin-right: 4%; }
+.r-print { background: #27ae60; color: #fff; }
+
+@media print {
+  .header, .tab-bar, .menu-panel, .cart-panel { display: none !important; }
+  .wrap { display: none !important; }
+  .print-overlay { display: block !important; position: static !important; background: none !important; }
+  .receipt {
+    position: static !important;
+    -webkit-transform: none !important;
+    transform: none !important;
+    width: 100% !important;
+    max-height: none !important;
+    border-radius: 0 !important;
+  }
+  .receipt-btns { display: none !important; }
+}
+</style>
+</head>
+<body ontouchstart="">
+
+<div class="header">
+  <h1>🍳 風味食堂 POS</h1>
+  <div class="info">彰化市大埔路523號｜0983606697<br>10:30-13:30 / 16:00-21:00（週六公休）</div>
+</div>
+
+<div class="tab-bar" id="tabBar">
+  <button class="active" onclick="showCat('stirfry',this)">現炒</button>
+  <button onclick="showCat('rice',this)">炒飯</button>
+  <button onclick="showCat('noodle',this)">炒麵</button>
+  <button onclick="showCat('soup',this)">例湯</button>
+  <button onclick="showCat('chef',this)">主廚菜</button>
+  <button onclick="showCat('other',this)">其他</button>
+</div>
+
+<div class="wrap">
+  <div class="menu-panel" id="menuPanel">
+
+    <div class="cat-block" id="cat-stirfry">
+      <div class="cat-title">🥘 風味現炒（附白飯）</div>
+      <div class="cat-items">
+        <div class="item-card stirfry" ontouchend="tapModal(event,'豬柳',140)" onclick="openModal('豬柳',140)">
+          <div class="n">豬柳</div><div class="p">$140</div><div class="sp">選醬料</div>
+        </div>
+        <div class="item-card stirfry" ontouchend="tapModal(event,'雞肉',140)" onclick="openModal('雞肉',140)">
+          <div class="n">雞肉</div><div class="p">$140</div><div class="sp">選醬料</div>
+        </div>
+        <div class="item-card stirfry" ontouchend="tapModal(event,'牛肉',150)" onclick="openModal('牛肉',150)">
+          <div class="n">牛肉</div><div class="p">$150</div><div class="sp">選醬料</div>
+        </div>
+        <div class="item-card stirfry" ontouchend="tapModal(event,'松板豬',170)" onclick="openModal('松板豬',170)">
+          <div class="n">松板豬</div><div class="p">$170</div><div class="sp">選醬料</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cat-block" id="cat-rice" style="display:none">
+      <div class="cat-title">🍳 風味炒飯</div>
+      <div class="cat-items" id="items-rice"></div>
+    </div>
+    <div class="cat-block" id="cat-noodle" style="display:none">
+      <div class="cat-title">🍜 風味炒麵</div>
+      <div class="cat-items" id="items-noodle"></div>
+    </div>
+    <div class="cat-block" id="cat-soup" style="display:none">
+      <div class="cat-title">🍲 風味例湯</div>
+      <div class="cat-items" id="items-soup"></div>
+    </div>
+    <div class="cat-block" id="cat-chef" style="display:none">
+      <div class="cat-title">👨‍🍳 主廚手路菜</div>
+      <div class="cat-items" id="items-chef"></div>
+    </div>
+    <div class="cat-block" id="cat-other" style="display:none">
+      <div class="cat-title">🥬 其他</div>
+      <div class="cat-items" id="items-other"></div>
+    </div>
+  </div>
+
+  <div class="cart-panel">
+    <div class="cart-head">🧾 點餐明細 <span id="cnt">共0項</span></div>
+    <div class="info-row">
+      <label>桌號</label>
+      <input id="tableNum" type="text" placeholder="桌號" maxlength="6">
+      <label style="margin-left:8px;">人數</label>
+      <input id="guestNum" type="number" placeholder="人" min="1" style="width:46px;">
+    </div>
+    <div class="cart-list" id="cartList">
+      <div class="cart-empty">尚未點餐</div>
+    </div>
+    <div class="remark-wrap">
+      <textarea id="remark" placeholder="備註：少油、不辣、加辣..."></textarea>
+    </div>
+    <div class="cart-foot">
+      <div class="total-row">
+        <span class="label">總金額</span>
+        <span class="amount" id="total">$0</span>
+      </div>
+      <div class="btn-row">
+        <button class="btn-clear" onclick="clearCart()">清空</button>
+        <button class="btn-print" onclick="printOrder()">列印</button>
+        <button class="btn-order" onclick="confirmOrder()">✅出單</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay" onclick="closeModalOutside(event)">
+  <div class="modal">
+    <h3 id="modal-title"></h3>
+    <div class="modal-label">選擇醬料</div>
+    <div class="sauce-grid" id="sauce-grid"></div>
+    <div class="modal-price" id="modal-price"></div>
+    <div class="modal-btns">
+      <button class="m-cancel" onclick="closeModal()">取消</button>
+      <button class="m-add" onclick="addStirfry()">加入訂單</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Print Receipt Overlay -->
+<div class="print-overlay" id="printOverlay">
+  <div class="receipt" id="receiptContent"></div>
+</div>
+
+<script>
+var SAUCES = ['蔥爆','三杯','沙茶','宮保','糖醋','泡菜','壽喜燒'];
+var RESTRICT = {
+  '豬柳':   ['蔥爆','三杯','沙茶','宮保','糖醋','泡菜'],
+  '雞肉':   ['蔥爆','三杯','沙茶','宮保','糖醋','泡菜'],
+  '牛肉':   ['蔥爆','三杯','沙茶','宮保','糖醋','泡菜','壽喜燒'],
+  '松板豬': ['蔥爆','三杯','沙茶','宮保','糖醋','泡菜']
+};
+var MENU = {
+  rice: [
+    {n:'火腿蛋炒飯',p:75},{n:'杏鮑菇蛋炒飯',p:80},{n:'肉絲蛋炒飯',p:85},
+    {n:'蝦仁蛋炒飯',p:90},{n:'牛肉蛋炒飯',p:95},{n:'鹹豬肉蛋炒飯',p:100},{n:'日式鮭魚蛋炒飯',p:100}
+  ],
+  noodle: [
+    {n:'肉絲炒麵',p:85},{n:'蝦仁炒麵',p:90},{n:'牛肉炒麵',p:95},{n:'鹹豬肉炒麵',p:100}
+  ],
+  soup: [
+    {n:'香菇菇燉雞湯',p:55},{n:'鳳梨苦瓜雞湯',p:55},{n:'蒜味蛤蜊雞湯',p:55},
+    {n:'剝皮辣椒雞湯',p:55},{n:'日式茶碗蒸湯',p:55},{n:'茶樹菇排骨湯',p:55},
+    {n:'肝鏈湯',p:45},{n:'貢丸湯',p:35}
+  ],
+  chef: [
+    {n:'梅林醬豆腐',p:100},{n:'經典金沙豆腐',p:110},{n:'塔香蛤蜊',p:110},
+    {n:'京都排骨',p:120},{n:'韓式洋釀炸雞',p:120},{n:'客家小炒',p:130},
+    {n:'蔥爆鹹豬肉',p:130},{n:'川味水煮豬',p:150,s:1},{n:'川味水煮牛',p:160,s:1},
+    {n:'川味水煮魚',p:160,s:1},{n:'麻油松板豬',p:170,s:1},
+    {n:'老罈酸菜豬',p:180,s:1},{n:'老罈酸菜牛',p:190,s:1},{n:'老罈酸菜魚',p:190,s:1}
+  ],
+  other: [
+    {n:'炒空心菜',p:60},{n:'炒高麗菜',p:60},{n:'九層塔蛋',p:65},{n:'蔥蛋',p:65},{n:'風味白飯',p:15}
+  ]
+};
+
+(function(){
+  var cats = ['rice','noodle','soup','chef','other'];
+  for(var c=0;c<cats.length;c++){
+    var cat = cats[c];
+    var el = document.getElementById('items-'+cat);
+    var items = MENU[cat];
+    var html = '';
+    for(var i=0;i<items.length;i++){
+      var it = items[i];
+      html += '<div class="item-card" ontouchend="tapItem(event,\''+it.n+'\','+it.p+')" onclick="addItem(\''+it.n+'\','+it.p+')">'
+        +'<div class="n">'+it.n+'</div>'
+        +'<div class="p">$'+it.p+'</div>'
+        +(it.s ? '<div class="sp">&#x1F336;</div>' : '')
+        +'</div>';
+    }
+    el.innerHTML = html;
+  }
+})();
+
+function tapItem(e, name, price) {
+  e.preventDefault();
+  addItem(name, price);
+}
+function tapModal(e, meat, price) {
+  e.preventDefault();
+  openModal(meat, price);
+}
+
+function showCat(id, btn) {
+  var cats = ['stirfry','rice','noodle','soup','chef','other'];
+  for(var i=0;i<cats.length;i++)
+    document.getElementById('cat-'+cats[i]).style.display = 'none';
+  document.getElementById('cat-'+id).style.display = 'block';
+  var btns = document.getElementById('tabBar').getElementsByTagName('button');
+  for(var j=0;j<btns.length;j++) btns[j].className = '';
+  btn.className = 'active';
+  document.getElementById('menuPanel').scrollTop = 0;
+}
+
+var cart = [], uid = 0;
+
+function addItem(name, price) {
+  for(var i=0;i<cart.length;i++){
+    if(cart[i].name===name && cart[i].sub===''){
+      cart[i].qty++; renderCart(); showToast('已加入：'+name); return;
+    }
+  }
+  cart.push({id:++uid, name:name, price:price, sub:'', qty:1});
+  renderCart(); showToast('已加入：'+name);
+}
+
+function changeQty(id, d) {
+  for(var i=0;i<cart.length;i++){
+    if(cart[i].id===id){
+      cart[i].qty += d;
+      if(cart[i].qty <= 0) cart.splice(i,1);
+      break;
+    }
+  }
+  renderCart();
+}
+
+function removeItem(id) {
+  for(var i=0;i<cart.length;i++){
+    if(cart[i].id===id){ cart.splice(i,1); break; }
+  }
+  renderCart();
+}
+
+function clearCart() {
+  if(cart.length===0) return;
+  if(confirm('確定清空所有點餐？')){ cart=[]; renderCart(); }
+}
+
+function renderCart() {
+  var el = document.getElementById('cartList');
+  var cnt = document.getElementById('cnt');
+  var tot = document.getElementById('total');
+  if(cart.length===0){
+    el.innerHTML = '<div class="cart-empty">尚未點餐</div>';
+    cnt.textContent = '共0項'; tot.textContent = '$0'; return;
+  }
+  var total=0, totalQty=0, html='';
+  for(var i=0;i<cart.length;i++){
+    var it=cart[i], lt=it.price*it.qty;
+    total+=lt; totalQty+=it.qty;
+    html += '<div class="cart-item">'
+      +'<button class="ci-del" onclick="removeItem('+it.id+')">&#x2715;</button>'
+      +'<div class="ci-name">'+it.name+'</div>'
+      +(it.sub ? '<div class="ci-sub">'+it.sub+'</div>' : '')
+      +'<div class="ci-right">'
+      +'<div class="ci-price">$'+lt+'</div>'
+      +'<div class="ci-ctrl">'
+      +'<button onclick="changeQty('+it.id+',-1)">&#xFF0D;</button>'
+      +'<span class="ci-qty">'+it.qty+'</span>'
+      +'<button onclick="changeQty('+it.id+',1)">&#xFF0B;</button>'
+      +'</div></div></div>';
+  }
+  el.innerHTML = html;
+  cnt.textContent = '共'+totalQty+'項';
+  tot.textContent = '$'+total;
+}
+
+var sfMeat='', sfPrice=0, sfSauce='';
+
+function openModal(meat, price) {
+  sfMeat=meat; sfPrice=price; sfSauce='';
+  document.getElementById('modal-title').textContent = '風味現炒 — '+meat;
+  document.getElementById('modal-price').textContent = '$'+price;
+  var avail = RESTRICT[meat] || SAUCES;
+  var html='';
+  for(var i=0;i<SAUCES.length;i++){
+    var s=SAUCES[i], ok=false;
+    for(var j=0;j<avail.length;j++){ if(avail[j]===s){ok=true;break;} }
+    html += '<button class="sauce-btn"'+(ok?'':' disabled')+' onclick="selSauce(this,\''+s+'\')">'+s+'</button>';
+  }
+  document.getElementById('sauce-grid').innerHTML = html;
+  document.getElementById('overlay').className = 'overlay show';
+}
+
+function selSauce(btn, s) {
+  var btns = document.getElementById('sauce-grid').getElementsByTagName('button');
+  for(var i=0;i<btns.length;i++) btns[i].className = 'sauce-btn';
+  btn.className = 'sauce-btn sel';
+  sfSauce = s;
+}
+
+function closeModal() {
+  document.getElementById('overlay').className = 'overlay';
+}
+
+function closeModalOutside(e) {
+  if(e.target === document.getElementById('overlay')) closeModal();
+}
+
+function addStirfry() {
+  if(!sfSauce){ alert('請選擇醬料！'); return; }
+  var name='現炒'+sfMeat, sub='【'+sfSauce+'】';
+  for(var i=0;i<cart.length;i++){
+    if(cart[i].name===name && cart[i].sub===sub){
+      cart[i].qty++; renderCart(); showToast('已加入'); closeModal(); return;
+    }
+  }
+  cart.push({id:++uid, name:name, price:sfPrice, sub:sub, qty:1});
+  renderCart(); showToast('已加入：'+name+' '+sub); closeModal();
+}
+
+function confirmOrder() {
+  if(cart.length===0){ alert('請先選擇餐點！'); return; }
+  var table = document.getElementById('tableNum').value.trim();
+  if(!table){ alert('請輸入桌號！'); return; }
+  var total=0;
+  for(var i=0;i<cart.length;i++) total+=cart[i].price*cart[i].qty;
+  var now=new Date();
+  var t=('0'+now.getHours()).slice(-2)+':'+('0'+now.getMinutes()).slice(-2);
+  alert('出單成功！\n桌號：'+table+'\n時間：'+t+'\n總金額：$'+total);
+}
+
+function printOrder() {
+  if(cart.length===0){ alert('請先選擇餐點！'); return; }
+  var table=document.getElementById('tableNum').value||'未填';
+  var guests=document.getElementById('guestNum').value||'-';
+  var remark=document.getElementById('remark').value||'無';
+  var total=0, rows='';
+  for(var i=0;i<cart.length;i++){
+    var it=cart[i], lt=it.price*it.qty; total+=lt;
+    rows+='<tr><td>'+it.name+(it.sub?' '+it.sub:'')+'</td><td align="center">'+it.qty+'</td><td align="right">$'+lt+'</td></tr>';
+  }
+  var now=new Date();
+  var ts=now.getFullYear()+'/'+(now.getMonth()+1)+'/'+now.getDate()+' '
+    +('0'+now.getHours()).slice(-2)+':'+('0'+now.getMinutes()).slice(-2);
+  var html='<h2>風味食堂</h2>'
+    +'<div class="r-info">彰化市大埔路523號 | 0983606697</div>'
+    +'<div class="r-meta">桌號：<b>'+table+'</b>　人數：'+guests+'<br>時間：'+ts+'</div>'
+    +'<table><tr><th align="left">品項</th><th>數</th><th align="right">小計</th></tr>'+rows+'</table>'
+    +'<div class="r-total">總金額：$'+total+'</div>'
+    +'<div class="r-remark">備註：'+remark+'</div>'
+    +'<div class="r-thanks">謝謝光臨，敬請慢用</div>'
+    +'<div class="receipt-btns">'
+    +'<button class="r-close" onclick="closePrint()">關閉</button>'
+    +'<button class="r-print" onclick="window.print()">列印</button>'
+    +'</div>';
+  document.getElementById('receiptContent').innerHTML = html;
+  document.getElementById('printOverlay').className = 'print-overlay show';
+}
+
+function closePrint() {
+  document.getElementById('printOverlay').className = 'print-overlay';
+}
+
+var toastTimer=null;
+function showToast(msg) {
+  var t=document.getElementById('toast');
+  t.textContent=msg; t.style.display='block';
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(function(){ t.style.display='none'; }, 1400);
+}
+</script>
+</body>
+</html>
