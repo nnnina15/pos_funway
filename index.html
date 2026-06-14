@@ -1270,7 +1270,8 @@ function printOrder() {
     table = noEl2 ? noEl2.textContent : '-';
   } else {
     var inp3=document.getElementById('tableNum');
-    table = inp3 ? (inp3.value||'未填') : '未填';
+    table = inp3 ? inp3.value.trim() : '';
+    if(!table){ alert('請輸入'+(orderType==='內用'?'桌號':'外送地址')+'！'); return; }
   }
   var remark=document.getElementById('remark').value||'';
   var total=0;
