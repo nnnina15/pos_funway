@@ -615,7 +615,12 @@ a, button, [onclick] { cursor: pointer; -webkit-tap-highlight-color: rgba(0,0,0,
 <!-- Records Overlay -->
 <div class="rec-overlay" id="recOverlay">
   <div class="rec-box">
-    <div class="rec-head">📋 訂單記錄 <button onclick="closeRecords()">關閉</button><button onclick="syncAll()" style="margin-right:6px;">☁同步全部</button></div>
+    <div class="rec-head">📋 訂單記錄 <button onclick="closeRecords()">關閉</button><button onclick="syncAll()" style="margin-right:6px;">☁同步</button></div>
+    <div style="display:flex;gap:6px;padding:8px 10px;border-bottom:1px solid #eee;background:#fafafa;">
+      <button id="flt-today" onclick="filterRec('today')" style="flex:1;padding:6px;border:1.5px solid #1a1a2e;border-radius:6px;background:#1a1a2e;color:#fff;font-weight:bold;cursor:pointer;">今天</button>
+      <button id="flt-all" onclick="filterRec('all')" style="flex:1;padding:6px;border:1.5px solid #ddd;border-radius:6px;background:#fff;color:#555;font-weight:bold;cursor:pointer;">全部</button>
+      <input type="date" id="flt-date" onchange="filterRec('date')" style="flex:1.5;padding:5px;border:1.5px solid #ddd;border-radius:6px;font-size:12px;">
+    </div>
     <div class="rec-list" id="recList"><div class="rec-empty">尚無訂單記錄</div></div>
   </div>
 </div>
@@ -1004,36 +1009,79 @@ function confirmOrder() {
   }
 }
 
-function openRecords() {
-  var el=document.getElementById('recList');
-  if(records.length===0){ el.innerHTML='<div class="rec-empty">尚無訂單記錄</div>'; }
-  else {
-    var html='';
-    for(var i=0;i<records.length;i++){
-      var r=records[i];
-      var tagClass = r.type==='內用'?'tag-dine':r.type==='外帶'?'tag-take':'tag-deliver';
-      var items='';
+var recFilter = 'today';
+
+function filterRec(mode) {
+  recFilter = mode;
+  var btnToday = document.getElementById('flt-today');
+  var btnAll = document.getElementById('flt-all');
+  if(btnToday && btnAll){
+    btnToday.style.background = mode==='today'?'#1a1a2e':'#fff';
+    btnToday.style.color = mode==='today'?'#fff':'#555';
+    btnAll.style.background = mode==='all'||mode==='date'?'#1a1a2e':'#fff';
+    btnAll.style.color = mode==='all'||mode==='date'?'#fff':'#555';
+  }
+  renderRecList();
+}
+
+function renderRecList() {
+  var el = document.getElementById('recList');
+  var today = getTodayStr();
+  var filterDate = '';
+  if(recFilter==='date'){
+    var di = document.getElementById('flt-date');
+    filterDate = di ? di.value : '';
+  }
+  var filtered = [];
+  for(var i=0;i<records.length;i++){
+    var r = records[i];
+    if(recFilter==='today' && r.date !== today) continue;
+    if(recFilter==='date' && filterDate && r.date !== filterDate) continue;
+    filtered.push({r:r, idx:i});
+  }
+  if(filtered.length===0){ el.innerHTML='<div class="rec-empty">無訂單記錄</div>'; return; }
+  var html='';
+  for(var k=0;k<filtered.length;k++){
+    var r=filtered[k].r, i=filtered[k].idx;
+    var tagClass = r.type==='內用'?'tag-dine':r.type==='外帶'?'tag-take':'tag-deliver';
+    var items='';
+    // 判斷 items 是物件陣列還是字串
+    var isObjArr = r.items && r.items.length > 0 && typeof r.items[0] === 'object' && r.items[0] !== null;
+    if(isObjArr){
       for(var j=0;j<r.items.length;j++){
         var it=r.items[j];
-        items+='<span>'+it.name+(it.sub?' '+it.sub:'')+' x'+it.qty+'</span>';
+        items+='<span>'+it.name+(it.sub?' ('+it.sub+')':'')+' x'+it.qty+'</span> ';
       }
-      var syncBadge = (r.synced
-        ? '<span style="color:#27ae60;font-size:11px;margin-left:4px;">☁✓</span>'
-        : '<span style="color:#e74c3c;font-size:11px;margin-left:4px;" onclick="syncOne('+i+')" ontouchend="syncOne('+i+');event.preventDefault();">☁重試</span>');
-      html+='<div class="rec-item">'
-        +'<div class="rec-item-head">'
-        +'#'+r.no+' <span class="tag '+tagClass+'">'+r.type+'</span> '+r.table
-        +(r.type==='內用'?' ('+r.guests+'人)':'')
-        +' &nbsp;'+r.date+' '+r.time
-        +syncBadge
-        +'<span class="rtotal">$'+r.total+'</span>'
-        +'<button class="r-reprint" onclick="reprintOrder('+i+');event.stopPropagation();" ontouchend="reprintOrder('+i+');event.stopPropagation();event.preventDefault();">🖨重印</button>'
-        +'</div>'
-        +'<div class="rec-item-body">'+items+(r.remark?'<br>備註：'+r.remark:'')+'</div>'
-        +'</div>';
+    } else if(r.items){
+      items = '<span>'+ r.items +'</span>';
     }
-    el.innerHTML=html;
+    var syncBadge = (r.synced
+      ? '<span style="color:#27ae60;font-size:11px;margin-left:4px;">☁✓</span>'
+      : '<span style="color:#e74c3c;font-size:11px;margin-left:4px;" onclick="syncOne('+i+')" ontouchend="syncOne('+i+');event.preventDefault();">☁重試</span>');
+    html+='<div class="rec-item">'
+      +'<div class="rec-item-head">'
+      +'<button onclick="deleteRecord('+i+')" ontouchend="deleteRecord('+i+');event.preventDefault();" style="float:left;background:none;border:none;color:#ccc;font-size:16px;cursor:pointer;padding:0 4px 0 0;line-height:1;">✕</button>'
+      +'#'+r.no+' <span class="tag '+tagClass+'">'+r.type+'</span> '+r.table
+      +' &nbsp;'+r.date+' '+r.time
+      +syncBadge
+      +'<span class="rtotal">$'+r.total+'</span>'
+      +'<button class="r-reprint" onclick="reprintOrder('+i+');event.stopPropagation();" ontouchend="reprintOrder('+i+');event.stopPropagation();event.preventDefault();">🖨重印</button>'
+      +'</div>'
+      +'<div class="rec-item-body">'+items+(r.remark?'<br>備註：'+r.remark:'')+'</div>'
+      +'</div>';
   }
+  el.innerHTML=html;
+}
+
+function deleteRecord(idx) {
+  if(!confirm('確定刪除此筆訂單記錄？')) return;
+  records.splice(idx, 1);
+  saveRecords();
+  renderRecList();
+}
+
+function openRecords() {
+  filterRec(recFilter);
   document.getElementById('recOverlay').className='rec-overlay show';
 }
 
@@ -1084,7 +1132,7 @@ function syncOne(idx) {
   syncToSheet(r, function(ok){
     r.synced = ok;
     showToast(ok ? '同步成功 ✓' : '同步失敗，請重試');
-    openRecords();
+    renderRecList();
   });
 }
 
@@ -1103,7 +1151,7 @@ function syncAll() {
         done++;
         if(done===pending.length){
           showToast('同步完成 ✓');
-          openRecords();
+          renderRecList();
         }
       });
     })(pending[j]);
