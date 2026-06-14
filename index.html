@@ -484,6 +484,19 @@ a, button, [onclick] { cursor: pointer; -webkit-tap-highlight-color: rgba(0,0,0,
   </div>
 </div>
 
+<!-- Firebase SDK (compat) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
+var firebaseConfig = {
+  apiKey: "AIzaSyDkPdUDRu-D95d7CD6ZaIJvKq4LHjB3w6A",
+  authDomain: "funwayrestaurant-4cf2e.firebaseapp.com",
+  projectId: "funwayrestaurant-4cf2e"
+};
+firebase.initializeApp(firebaseConfig);
+var db = firebase.firestore();
+</script>
+
 <script>
 var SAUCES = ['蔥爆','三杯','沙茶','宮保','糖醋','泡菜','壽喜燒'];
 var RESTRICT = {
@@ -556,9 +569,6 @@ function showCat(id, btn) {
   document.getElementById('menuPanel').scrollTop = 0;
 }
 
-// ===== Firebase Firestore 設定 =====
-var FIREBASE_URL = 'https://firestore.googleapis.com/v1/projects/funwayrestaurant/databases/(default)/documents/orders';
-// ====================================
 
 var cart = [], uid = 0, orderType = '內用', records = [], orderNo = 0;
 var takeoutCount = 0;
@@ -761,10 +771,9 @@ function openRecords() {
         var it=r.items[j];
         items+='<span>'+it.name+(it.sub?' '+it.sub:'')+' x'+it.qty+'</span>';
       }
-      var syncBadge = FIREBASE_URL ? (r.synced
+      var syncBadge = (r.synced
         ? '<span style="color:#27ae60;font-size:11px;margin-left:4px;">☁✓</span>'
-        : '<span style="color:#e74c3c;font-size:11px;margin-left:4px;" onclick="syncOne('+i+')" ontouchend="syncOne('+i+');event.preventDefault();">☁重試</span>')
-        : '';
+        : '<span style="color:#e74c3c;font-size:11px;margin-left:4px;" onclick="syncOne('+i+')" ontouchend="syncOne('+i+');event.preventDefault();">☁重試</span>');
       html+='<div class="rec-item">'
         +'<div class="rec-item-head">'
         +'#'+r.no+' <span class="tag '+tagClass+'">'+r.type+'</span> '+r.table
@@ -787,35 +796,17 @@ function closeRecords() {
 }
 
 function syncToSheet(r, callback) {
-  if(!FIREBASE_URL){ if(callback) callback(false); return; }
   var itemStr='';
   for(var i=0;i<r.items.length;i++){
     var it=r.items[i];
     itemStr+=(i?'、':'')+it.name+(it.sub?' '+it.sub:'')+' x'+it.qty;
   }
-  var payload = JSON.stringify({
-    fields: {
-      no:     { integerValue: r.no },
-      date:   { stringValue: r.date },
-      time:   { stringValue: r.time },
-      type:   { stringValue: r.type },
-      table:  { stringValue: r.table },
-      items:  { stringValue: itemStr },
-      total:  { integerValue: r.total },
-      remark: { stringValue: r.remark||'' }
-    }
-  });
-  var xhr = new XMLHttpRequest();
-  xhr.open('POST', FIREBASE_URL, true);
-  xhr.setRequestHeader('Content-Type', 'application/json');
-  xhr.onreadystatechange = function() {
-    if(xhr.readyState===4){
-      var ok = xhr.status===200;
-      if(callback) callback(ok);
-    }
-  };
-  xhr.onerror = function(){ if(callback) callback(false); };
-  xhr.send(payload);
+  db.collection('orders').add({
+    no: r.no, date: r.date, time: r.time,
+    type: r.type, table: r.table,
+    items: itemStr, total: r.total, remark: r.remark||''
+  }).then(function(){ if(callback) callback(true); })
+    .catch(function(){ if(callback) callback(false); });
 }
 
 function syncOne(idx) {
@@ -830,7 +821,6 @@ function syncOne(idx) {
 }
 
 function syncAll() {
-  if(!FIREBASE_URL){ showToast('請先設定 FIREBASE_URL'); return; }
   var pending=[];
   for(var i=0;i<records.length;i++){
     if(!records[i].synced) pending.push(i);
