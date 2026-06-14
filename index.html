@@ -355,6 +355,78 @@ a, button, [onclick] { cursor: pointer; -webkit-tap-highlight-color: rgba(0,0,0,
 .rec-item-body { padding: 6px 10px; font-size: 12px; color: #555; }
 .rec-item-body span { margin-right: 12px; }
 
+/* ===== 手機版 ===== */
+@media (max-width: 600px) {
+  .wrap { display: block; height: auto; }
+
+  .menu-panel {
+    width: 100%;
+    height: calc(100vh - 46px);
+    padding-bottom: 70px;
+  }
+
+  .item-card { width: 48%; margin: 1%; }
+
+  .cart-panel {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    width: 100%;
+    height: 75vh;
+    border-left: none;
+    border-top: 3px solid #e74c3c;
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.2);
+    z-index: 500;
+    -webkit-transform: translateY(100%);
+    transform: translateY(100%);
+    -webkit-transition: -webkit-transform 0.3s;
+    transition: transform 0.3s;
+  }
+  .cart-panel.open {
+    -webkit-transform: translateY(0);
+    transform: translateY(0);
+  }
+
+  .cart-fab {
+    display: -webkit-box;
+    display: -webkit-flex;
+    display: flex;
+    -webkit-box-align: center;
+    -webkit-align-items: center;
+    align-items: center;
+  }
+
+  .otype-row { padding: 6px 8px; }
+  .otype-row button { padding: 8px 12px; font-size: 13px; }
+}
+
+@media (min-width: 601px) {
+  .cart-fab { display: none !important; }
+  .cart-panel { -webkit-transform: none !important; transform: none !important; }
+}
+
+.cart-fab {
+  display: none;
+  position: fixed;
+  bottom: 16px; left: 0; right: 0;
+  z-index: 490;
+  -webkit-box-pack: center;
+  -webkit-justify-content: center;
+  justify-content: center;
+}
+.cart-fab button {
+  background: #e74c3c;
+  color: #fff;
+  border: none;
+  border-radius: 30px;
+  padding: 14px 32px;
+  font-size: 16px;
+  font-weight: bold;
+  box-shadow: 0 4px 16px rgba(231,76,60,0.5);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
 @media print {
   .header, .tab-bar, .menu-panel, .cart-panel { display: none !important; }
   .wrap { display: none !important; }
@@ -454,6 +526,13 @@ a, button, [onclick] { cursor: pointer; -webkit-tap-highlight-color: rgba(0,0,0,
       </div>
     </div>
   </div>
+</div>
+
+<!-- 手機版浮動購物車按鈕 -->
+<div class="cart-fab" id="cartFab">
+  <button ontouchend="toggleCart();event.preventDefault();" onclick="toggleCart()">
+    🛒 查看點單 <span id="fabCount"></span>
+  </button>
 </div>
 
 <div class="overlay" id="overlay" onclick="closeModalOutside(event)">
@@ -654,7 +733,7 @@ function removeItem(id) {
 
 function clearCart() {
   if(cart.length===0) return;
-  if(confirm('確定清空所有點餐？')){ cart=[]; renderCart(); }
+  if(confirm('確定清空所有點餐？')){ cart=[]; renderCart(); var p=document.querySelector('.cart-panel'); if(p) p.className=p.className.replace(' open',''); }
 }
 
 function renderCart() {
@@ -684,6 +763,18 @@ function renderCart() {
   el.innerHTML = html;
   cnt.textContent = '共'+totalQty+'項';
   tot.textContent = '$'+total;
+  var fab = document.getElementById('fabCount');
+  if(fab) fab.textContent = totalQty+'項 $'+total;
+}
+
+function toggleCart() {
+  var panel = document.querySelector('.cart-panel');
+  if(!panel) return;
+  if(panel.className.indexOf('open') >= 0){
+    panel.className = panel.className.replace(' open','');
+  } else {
+    panel.className += ' open';
+  }
 }
 
 var sfMeat='', sfPrice=0, sfSauce='';
@@ -766,6 +857,7 @@ function confirmOrder() {
   syncToGAS(newRec);
   syncToSheet(newRec, function(ok){ newRec.synced=ok; saveRecords(); if(ok) showToast('已同步到 Firebase ✓'); });
   cart=[]; renderCart();
+  var cp=document.querySelector('.cart-panel'); if(cp) cp.className=cp.className.replace(' open','');
   document.getElementById('remark').value='';
   // Refresh infoRow for 外帶 (update number)
   if(orderType==='外帶'){
