@@ -836,14 +836,18 @@ function syncToGAS(r) {
     var it=r.items[i];
     itemStr+=(i?'、':'')+it.name+(it.sub?' '+it.sub:'')+' x'+it.qty;
   }
-  var xhr = new XMLHttpRequest();
-  xhr.open('POST', GAS_URL, true);
-  xhr.setRequestHeader('Content-Type', 'text/plain');
-  xhr.send(JSON.stringify({
+  var body = JSON.stringify({
     no: r.no, date: r.date, time: r.time,
     type: r.type, table: r.table,
     items: itemStr, total: r.total, remark: r.remark||''
-  }));
+  });
+  if(window.fetch){
+    fetch(GAS_URL, { method:'POST', mode:'no-cors', body: body });
+  } else {
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', GAS_URL, true);
+    xhr.send(body);
+  }
 }
 
 function syncOne(idx) {
